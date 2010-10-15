@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
+//#define LOG_NDEBUG 0
 #define LOG_TAG "AudioHardwareALSA"
 #include <utils/Log.h>
 #include <utils/String8.h>
@@ -167,8 +168,21 @@ status_t AudioStreamOutALSA::standby()
 
 uint32_t AudioStreamOutALSA::latency() const
 {
-    // Android wants latency in milliseconds.
-    return USEC_TO_MSEC (mHandle->latency);
+    int t;
+    snd_pcm_status_t *status;
+
+	snd_pcm_status_alloca(&status);
+
+	if (snd_pcm_status(mHandle->handle, status) < 0) {
+        return USEC_TO_MSEC (mHandle->latency);
+	}
+
+    t = snd_pcm_status_get_delay(status);
+    LOGV("snd_pcm_status_get_delay = %d", t);
+    LOGV("AudioStreamOutALSA::latency = %d, sampleRate = %d", 
+        (t * 1000) / sampleRate(),
+        sampleRate());
+    return (t * 1000) / sampleRate();
 }
 
 // return the number of audio frames written by the audio dsp to DAC since
