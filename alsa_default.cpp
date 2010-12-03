@@ -118,10 +118,10 @@ static alsa_handle_t _defaultsIn = {
     curMode     : 0,
     handle      : 0,
     format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
-    channels    : 1,
-    sampleRate  : AudioRecord::DEFAULT_SAMPLE_RATE,
+    channels    : 2,
+    sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 250000, // Desired Delay in usec
-    bufferSize  : 2048, // Desired Number of samples
+    bufferSize  : 32768, // Desired Number of samples
     modPrivate  : 0,
 };
 
@@ -235,7 +235,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
         goto done;
     }
 
-    LOGV("Set %s PCM format to %s (%s)", streamName(), formatName, formatDesc);
+    LOGW("Set %s PCM format to %s (%s)", streamName(handle), formatName, formatDesc);
 
     err = snd_pcm_hw_params_set_channels(handle->handle, hardwareParams,
             handle->channels);
@@ -245,8 +245,8 @@ status_t setHardwareParams(alsa_handle_t *handle)
         goto done;
     }
 
-    LOGV("Using %i %s for %s.", handle->channels,
-            handle->channels == 1 ? "channel" : "channels", streamName());
+    LOGW("Using %i %s for %s.", handle->channels,
+            handle->channels == 1 ? "channel" : "channels", streamName(handle));
 
     err = snd_pcm_hw_params_set_rate_near(handle->handle, hardwareParams,
             &requestedRate, 0);
