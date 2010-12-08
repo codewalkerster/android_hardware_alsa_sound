@@ -261,7 +261,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGW("Requested rate (%u HZ) does not match actual rate (%u HZ)",
                 handle->sampleRate, requestedRate);
     else
-        LOGV("Set %s sample rate to %u HZ", stream, requestedRate);
+        LOGI("Set %s sample rate to %u HZ", streamName(handle), requestedRate);
 
 #ifdef DISABLE_HARWARE_RESAMPLING
     // Disable hardware re-sampling.
@@ -335,8 +335,8 @@ status_t setHardwareParams(alsa_handle_t *handle)
         }
     }
 
-    LOGV("Buffer size: %d", (int)bufferSize);
-    LOGV("Latency: %d", (int)latency);
+    LOGI("Buffer size: %d", (int)bufferSize);
+    LOGI("Latency: %d", (int)latency);
 
     handle->bufferSize = bufferSize;
     handle->latency = latency;
