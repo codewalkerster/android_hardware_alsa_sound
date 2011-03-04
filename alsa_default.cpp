@@ -30,7 +30,7 @@
         strcat(x, y);
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
-#define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
+#define ALSA_DEFAULT_SAMPLE_RATE 48000	 // in Hz
 #endif
 
 namespace android
