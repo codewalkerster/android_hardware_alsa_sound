@@ -173,12 +173,19 @@ status_t AudioStreamOutALSA::standby()
 
 uint32_t AudioStreamOutALSA::latency() const
 {
+    int err;
     int t;
     snd_pcm_status_t *status;
 
 	snd_pcm_status_alloca(&status);
 
-	if (snd_pcm_status(mHandle->handle, status) < 0) {
+    if(mHandle->handle == NULL) {
+        LOGV("handle is null, error !");
+        return 0;
+    }
+	
+	if ((err = snd_pcm_status(mHandle->handle, status)) < 0) {
+	 LOGV("stream status error :%s\n", snd_strerror(err));
         return USEC_TO_MSEC (mHandle->latency);
 	}
 
