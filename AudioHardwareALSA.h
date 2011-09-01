@@ -334,6 +334,9 @@ public:
             AudioSystem::audio_in_acoustics acoustics);
     virtual    void        closeInputStream(AudioStreamIn* in);
 
+    size_t getInputBufferSize(uint32_t sampleRate, int format, int channelCount);
+
+
     /**This method dumps the state of the audio hardware */
     //virtual status_t dumpState(int fd, const Vector<String16>& args);
 

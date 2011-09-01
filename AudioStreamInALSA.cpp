@@ -36,6 +36,8 @@
 namespace android
 {
 
+static int ALSARecoveryFrames = -1 ;
+
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
         alsa_handle_t *handle,
         AudioSystem::audio_in_acoustics audio_acoustics) :
@@ -58,6 +60,7 @@ status_t AudioStreamInALSA::setGain(float gain)
     return mixer() ? mixer()->setMasterGain(gain) : (status_t)NO_INIT;
 }
 
+//static int64_t lastreadtime = 0;
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     AutoMutex lock(mLock);
@@ -83,7 +86,13 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
             if (mHandle->handle) {
                 if (n < 0) {
                     n = snd_pcm_recover(mHandle->handle, n, 0);
-
+		    
+				    if(ALSARecoveryFrames == -1)
+				    {
+						ALSARecoveryFrames = (ALSAStreamOps::bufferSize()>>1)/AudioSystem::popCount(ALSAStreamOps::channels());
+				    }	
+                    //LOGE("ALSA RECOVER %d, time delay %lld",ALSARecoveryFrames,systemTime()/1000-lastreadtime);
+	            	mFramesLost+=ALSARecoveryFrames;
                     if (aDev && aDev->recover) aDev->recover(aDev, n);
                 } else
                     n = snd_pcm_prepare(mHandle->handle);
@@ -91,6 +100,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
             return static_cast<ssize_t>(n);
         }
     } while (n == -EAGAIN);
+
+	//lastreadtime = systemTime()/1000;
 
     return static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
 }
@@ -155,6 +166,7 @@ unsigned int AudioStreamInALSA::getInputFramesLost() const
     unsigned int count = mFramesLost;
     // Stupid interface wants us to have a side effect of clearing the count
     // but is defined as a const to prevent such a thing.
+    //LOGD("lost frames %d",mFramesLost);
     ((AudioStreamInALSA *)this)->resetFramesLost();
     return count;
 }
