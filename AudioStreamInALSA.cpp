@@ -77,11 +77,17 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if (aDev && aDev->read)
         return aDev->read(aDev, buffer, bytes);
 
-    snd_pcm_sframes_t n, frames = snd_pcm_bytes_to_frames(mHandle->handle, bytes);
+    snd_pcm_sframes_t n = 0, frames = 0;
     status_t          err;
 
+    if (mHandle->handle) {
+        frames = snd_pcm_bytes_to_frames(mHandle->handle, bytes);
+    }
+
     do {
-        n = snd_pcm_readi(mHandle->handle, buffer, frames);
+        if (mHandle->handle) {
+            n = snd_pcm_readi(mHandle->handle, buffer, frames);
+        }
         if (n < frames) {
             if (mHandle->handle) {
                 if (n < 0) {
@@ -103,7 +109,10 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
 	//lastreadtime = systemTime()/1000;
 
-    return static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+    if (mHandle->handle)
+        return static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+
+    return static_cast<ssize_t>(n);
 }
 
 status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
