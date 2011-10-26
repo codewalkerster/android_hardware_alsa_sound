@@ -84,6 +84,7 @@ endif
 
   LOCAL_SHARED_LIBRARIES := \
   	libasound \
+  	libcutils \
   	liblog
 
   LOCAL_MODULE_TAGS := optional

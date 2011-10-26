@@ -20,6 +20,7 @@
 
 #include "AudioHardwareALSA.h"
 #include <media/AudioRecord.h>
+#include <cutils/properties.h>
 
 #undef DISABLE_HARWARE_RESAMPLING
 
@@ -186,6 +187,60 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 const char *streamName(alsa_handle_t *handle)
 {
     return snd_pcm_stream_name(direction(handle));
+}
+
+static int getDeviceNum(snd_pcm_stream_t stream)
+{
+	int card = -1, amlcard = -1,dev,err;
+	snd_ctl_t *handle;
+	snd_ctl_card_info_t *info;
+	snd_pcm_info_t *pcminfo;
+	snd_ctl_card_info_alloca(&info);
+	snd_pcm_info_alloca(&pcminfo);
+	if (snd_card_next(&card) < 0 || card < 0) {
+		LOGE("no soundcards found...");
+		return -1;
+	}
+	while (card >= 0) {
+		char name[32];
+		sprintf(name, "hw:%d", card);
+		if ((err = snd_ctl_open(&handle, name, 0)) < 0) {
+			LOGE("control open (%i): %s", card, snd_strerror(err));
+			goto next_card;
+		}
+		if ((err = snd_ctl_card_info(handle, info)) < 0) {
+			LOGE("control hardware info (%i): %s", card, snd_strerror(err));
+			snd_ctl_close(handle);
+			goto next_card;
+		}
+		dev = -1;
+		while (1) {
+			if (snd_ctl_pcm_next_device(handle, &dev)<0)
+				LOGE("snd_ctl_pcm_next_device");
+			if (dev < 0)
+				break;
+			snd_pcm_info_set_device(pcminfo, dev);
+			snd_pcm_info_set_subdevice(pcminfo, 0);
+			snd_pcm_info_set_stream(pcminfo, stream);
+			if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+				if (err != -ENOENT)
+					LOGE("control digital audio info (%i): %s", card, snd_strerror(err));
+				continue;
+			}
+			LOGE("heming add snd_ctl_card_info_get_id=%s",snd_ctl_card_info_get_id(info));
+			if(strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)//find the first non amlm1 device
+				return card;
+			else
+				amlcard = card;
+		}
+		snd_ctl_close(handle);
+		next_card:
+	    if (snd_card_next(&card) < 0) {
+		    LOGE("snd_card_next");
+		    break;
+	    }
+	}
+	return amlcard;
 }
 
 status_t setHardwareParams(alsa_handle_t *handle)
@@ -466,9 +521,16 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
-
-    int err;
-
+    int err,card;
+    char prop[20],dev_Name[20];
+    property_get("alsa.use.usb.audioin",prop,"flase");
+    if(strcmp(prop,"true") == 0){
+        card = getDeviceNum(direction(handle));
+        if(card >= 0){
+            sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
+            devName = dev_Name;
+        }
+    }
     for (;;) {
         // The PCM stream is opened in blocking mode, per ALSA defaults.  The
         // AudioFlinger seems to assume blocking mode too, so asynchronous mode
