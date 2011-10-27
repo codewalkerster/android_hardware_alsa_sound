@@ -126,6 +126,20 @@ static alsa_handle_t _defaultsIn = {
     modPrivate  : 0,
 };
 
+static alsa_handle_t _defaultsUSBIn = {
+    module      : 0,
+    devices     : AudioSystem::DEVICE_IN_ALL,
+    curDev      : 0,
+    curMode     : 0,
+    handle      : 0,
+    format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
+    channels    : 1,
+    sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
+    latency     : 100000, // Desired Delay in usec
+    bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    modPrivate  : 0,
+};
+
 struct device_suffix_t {
     const AudioSystem::audio_devices device;
     const char *suffix;
@@ -495,15 +509,34 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
     list.push_back(_defaultsOut);
 
-    bufferSize = _defaultsIn.bufferSize;
+    char prop[10] = {0};
+	property_get("alsa.use.usb.audioin", prop, "false");
 
-    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
-        bufferSize &= ~i;
+    //Use AMLM1 audio in default parameter
+	if(strcmp(prop,"false") == 0){
 
-    _defaultsIn.module = module;
-    _defaultsIn.bufferSize = bufferSize;
+	    bufferSize = _defaultsIn.bufferSize;
 
-    list.push_back(_defaultsIn);
+	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
+	        bufferSize &= ~i;
+
+	    _defaultsIn.module = module;
+	    _defaultsIn.bufferSize = bufferSize;
+
+	    list.push_back(_defaultsIn);
+	}
+	else{////Use USB audio in default parameter
+
+	    bufferSize = _defaultsUSBIn.bufferSize;
+
+	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
+	        bufferSize &= ~i;
+
+	    _defaultsUSBIn.module = module;
+	    _defaultsUSBIn.bufferSize = bufferSize;
+
+	    list.push_back(_defaultsUSBIn);
+	}
 
     return NO_ERROR;
 }
