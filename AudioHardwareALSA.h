@@ -19,13 +19,16 @@
 #define ANDROID_AUDIO_HARDWARE_ALSA_H
 
 #include <utils/List.h>
+#include <utils/threads.h>
 #include <hardware_legacy/AudioHardwareBase.h>
 
 #include <alsa/asoundlib.h>
 
 #include <hardware/hardware.h>
 
-namespace android
+using namespace android;
+
+namespace android_audio_legacy
 {
 
 class AudioHardwareALSA;
@@ -261,6 +264,8 @@ public:
     // Such loss typically occurs when the user space process is blocked longer than the capacity of audio driver buffers.
     // Unit: the number of input audio frames
     virtual unsigned int  getInputFramesLost() const;
+    virtual status_t addAudioEffect(effect_handle_t effect);
+    virtual status_t removeAudioEffect(effect_handle_t effect);
 
     status_t            setAcousticParams(void* params);
 

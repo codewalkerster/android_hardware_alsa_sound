@@ -22,9 +22,11 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 	ALSAMixer.cpp \
 	ALSAControl.cpp
 
-  LOCAL_MODULE := libaudio
+  LOCAL_MODULE := audio.primary.default
+  LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
-  LOCAL_STATIC_LIBRARIES += libaudiointerface
+  LOCAL_STATIC_LIBRARIES += libmedia_helper
+  LOCAL_WHOLE_STATIC_LIBRARIES := libaudiohw_legacy
 
   LOCAL_SHARED_LIBRARIES := \
     libasound \
@@ -42,7 +44,9 @@ endif
   include $(BUILD_SHARED_LIBRARY)
 
 # This is the ALSA audio policy manager
-
+ifeq (0,1)
+  # Disabled because it doesn't do anything. Using
+  # audio_policy.default.so from libhardware_legacy instead.
   include $(CLEAR_VARS)
 
   LOCAL_CFLAGS := -D_POSIX_SOURCE
@@ -55,7 +59,8 @@ endif
 
   LOCAL_MODULE := libaudiopolicy
 
-  LOCAL_WHOLE_STATIC_LIBRARIES += libaudiopolicybase
+  LOCAL_STATIC_LIBRARIES := libmedia_helper
+  LOCAL_WHOLE_STATIC_LIBRARIES += libaudiopolicy_legacy
 
   LOCAL_SHARED_LIBRARIES := \
     libcutils \
@@ -63,6 +68,7 @@ endif
     libmedia
 
   include $(BUILD_SHARED_LIBRARY)
+endif # 0,1
 
 # This is the default ALSA module which behaves closely like the original
 

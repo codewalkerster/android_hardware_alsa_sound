@@ -33,7 +33,7 @@
 
 #include "AudioHardwareALSA.h"
 
-namespace android
+namespace android_audio_legacy
 {
 
 static int ALSARecoveryFrames = -1 ;
@@ -187,6 +187,16 @@ status_t AudioStreamInALSA::setAcousticParams(void *params)
     acoustic_device_t *aDev = acoustics();
 
     return aDev ? aDev->set_params(aDev, mAcoustics, params) : (status_t)NO_ERROR;
+}
+
+status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)
+{
+    return NO_ERROR;
+}
+
+status_t AudioStreamInALSA::removeAudioEffect(effect_handle_t effect)
+{
+    return NO_ERROR;
 }
 
 }       // namespace android
