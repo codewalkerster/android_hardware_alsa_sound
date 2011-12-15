@@ -548,9 +548,11 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     // changes, but we might be recovering from an error or manipulating
     // mixer settings (see asound.conf).
     //
-    s_close(handle);
-
     LOGD("open called for devices %08x in mode %d...", devices, mode);
+    if( devices == 0 ){
+    	return BAD_VALUE;
+	}
+    s_close(handle);
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
