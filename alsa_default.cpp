@@ -109,6 +109,7 @@ static alsa_handle_t _defaultsOut = {
     sampleRate  : DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
     bufferSize  : DEFAULT_SAMPLE_RATE / 10, // Desired Number of samples
+    mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
 
@@ -123,6 +124,7 @@ static alsa_handle_t _defaultsIn = {
     sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
     bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
 
@@ -137,6 +139,7 @@ static alsa_handle_t _defaultsUSBIn = {
     sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
     bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
 
@@ -554,6 +557,8 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 	}
     s_close(handle);
 
+    pthread_mutex_lock(&handle->mLock);
+
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
     int err,card;
@@ -590,6 +595,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     if (err < 0) {
         LOGE("Failed to Initialize any ALSA %s device: %s",
                 stream, strerror(err));
+	 pthread_mutex_unlock(&handle->mLock);
         return NO_INIT;
     }
 
@@ -602,11 +608,14 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     handle->curDev = devices;
     handle->curMode = mode;
 
+    pthread_mutex_unlock(&handle->mLock);
     return err;
 }
 
 static status_t s_close(alsa_handle_t *handle)
 {
+    pthread_mutex_lock(&handle->mLock);
+
     status_t err = NO_ERROR;
     snd_pcm_t *h = handle->handle;
     handle->handle = 0;
@@ -617,6 +626,7 @@ static status_t s_close(alsa_handle_t *handle)
         err = snd_pcm_close(h);
     }
 
+    pthread_mutex_unlock(&handle->mLock);
     return err;
 }
 
