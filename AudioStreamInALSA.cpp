@@ -33,6 +33,8 @@
 
 #include "AudioHardwareALSA.h"
 
+extern bool mMicMute;
+
 namespace android_audio_legacy
 {
 
@@ -87,6 +89,10 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     do {
         if (mHandle->handle) {
             n = snd_pcm_readi(mHandle->handle, buffer, frames);
+
+			if(1 == mMicMute && 0 < n) {
+                memset(buffer, 0, snd_pcm_frames_to_bytes(mHandle->handle, n));
+			}
         }
         if (n < frames) {
             if (mHandle->handle) {

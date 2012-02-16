@@ -33,6 +33,8 @@
 
 #include "AudioHardwareALSA.h"
 
+bool mMicMute = 0;
+
 extern "C"
 {
     //
@@ -242,17 +244,23 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 }
 
 status_t AudioHardwareALSA::setMicMute(bool state)
-{
-    if (mMixer)
-        return mMixer->setCaptureMuteState(AudioSystem::DEVICE_OUT_EARPIECE, state);
+{	
+	//replace DEVICE_OUT_EARPIECE by DEVICE_IN_BUILTIN_MIC,junliang add mic control
+    //if (mMixer)
+        //return mMixer->setCaptureMuteState(AudioSystem::DEVICE_IN_BUILTIN_MIC, state);
 
-    return NO_INIT;
+	mMicMute = state;
+
+    return NO_ERROR;
 }
 
 status_t AudioHardwareALSA::getMicMute(bool *state)
 {
-    if (mMixer)
-        return mMixer->getCaptureMuteState(AudioSystem::DEVICE_OUT_EARPIECE, state);
+	//replace DEVICE_OUT_EARPIECE by DEVICE_IN_BUILTIN_MIC,junliang add mic control
+    //if (mMixer)
+        //return mMixer->getCaptureMuteState(AudioSystem::DEVICE_IN_BUILTIN_MIC, state);
+
+	*state = mMicMute;
 
     return NO_ERROR;
 }
