@@ -245,7 +245,7 @@ static int getDeviceNum(snd_pcm_stream_t stream)
 				continue;
 			}
 			LOGE("heming add snd_ctl_card_info_get_id=%s",snd_ctl_card_info_get_id(info));
-			if(strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)//find the first non amlm1 device
+			if((strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM3")!=0))//find th
 				return card;
 			else
 				amlcard = card;
