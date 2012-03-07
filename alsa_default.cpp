@@ -215,8 +215,8 @@ static int getDeviceNum(snd_pcm_stream_t stream)
 	int default_card = -1;
 	char prop[20];
 	
-	property_get("snd.card.default.card", prop, NULL);
-	if (prop)	
+	property_get("snd.card.default.card", prop, "null");
+	if (strcmp(prop, "null") != 0)
 		default_card = strtol(prop, NULL, 0);	
 	LOGE("prop =  %s, default_card = %d", prop, default_card);
 	
