@@ -255,7 +255,7 @@ static int getDeviceNum(snd_pcm_stream_t stream)
 			LOGE("heming add snd_ctl_card_info_get_id=%s",snd_ctl_card_info_get_id(info));
 			if ((default_card>=0) && (default_card==card))
 				return card;
-			else if((strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM3")!=0))//find th
+			else if((strcmp(snd_ctl_card_info_get_id(info),"AMLM2")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM3")!=0))//find th
 				return card;
 			else
 				amlcard = card;
