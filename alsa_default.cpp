@@ -136,9 +136,9 @@ static alsa_handle_t _defaultsUSBIn = {
     handle      : 0,
     format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
     channels    : 1,
-    sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
+    sampleRate  : 16000,//DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
-    bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    bufferSize  : 1600,//DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
     mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
@@ -252,10 +252,10 @@ static int getDeviceNum(snd_pcm_stream_t stream)
 					LOGE("control digital audio info (%i): %s", card, snd_strerror(err));
 				continue;
 			}
-			LOGE("heming add snd_ctl_card_info_get_id=%s",snd_ctl_card_info_get_id(info));
+			LOGE("heming add snd_ctl_card_info_get_id=%s, default_card=%d, card=%d",snd_ctl_card_info_get_id(info), default_card, card);
 			if ((default_card>=0) && (default_card==card))
 				return card;
-			else if((strcmp(snd_ctl_card_info_get_id(info),"AMLM2")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM1")!=0)&&(strcmp(snd_ctl_card_info_get_id(info),"AMLM3")!=0))//find th
+			else if(strncmp(snd_ctl_card_info_get_id(info),"AML",3)!=0)//find AML sound card
 				return card;
 			else
 				amlcard = card;
@@ -574,7 +574,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     int err,card;
     char prop[20],dev_Name[20];
     property_get("alsa.use.usb.audioin",prop,"flase");
-    if(strcmp(prop,"true") == 0){
+    if(strcmp(prop,"true") == 0 && direction(handle) == SND_PCM_STREAM_CAPTURE){
         card = getDeviceNum(direction(handle));
         if(card >= 0){
             sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
