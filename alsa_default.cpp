@@ -108,7 +108,7 @@ static alsa_handle_t _defaultsOut = {
     channels    : 2,
     sampleRate  : DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
-    bufferSize  : DEFAULT_SAMPLE_RATE / 10, // Desired Number of samples
+    bufferSize  : DEFAULT_SAMPLE_RATE / 5, // about 200ms's buffer size, necessary for audio postprocess
     mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
