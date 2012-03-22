@@ -112,6 +112,7 @@ static alsa_handle_t _defaultsOut = {
     mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
+static const char* builtinAudio = "builtin-audio";
 
 static alsa_handle_t _defaultsIn = {
     module      : 0,
@@ -123,10 +124,12 @@ static alsa_handle_t _defaultsIn = {
     channels    : 2,
     sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
-    bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    bufferSize  : DEFAULT_SAMPLE_RATE/5, // Desired Number of samples
     mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
+
+static const char* usbAudio = "usb-audio";
 
 static alsa_handle_t _defaultsUSBIn = {
     module      : 0,
@@ -206,7 +209,7 @@ const char *streamName(alsa_handle_t *handle)
     return snd_pcm_stream_name(direction(handle));
 }
 
-static int getDeviceNum(snd_pcm_stream_t stream)
+static int getDeviceNum(snd_pcm_stream_t stream, char* card_name)
 {
 	int card = -1, amlcard = -1,dev,err;
 	snd_ctl_t *handle;
@@ -252,8 +255,16 @@ static int getDeviceNum(snd_pcm_stream_t stream)
 					LOGE("control digital audio info (%i): %s", card, snd_strerror(err));
 				continue;
 			}
+            /*
+             * if default_card >= 0 , or same as the current found card, return it.
+             * if default_card <  0 , enable USB audio first, if found
+             * else, enable builtin-audio
+             */
 			LOGE("heming add snd_ctl_card_info_get_id=%s, default_card=%d, card=%d",snd_ctl_card_info_get_id(info), default_card, card);
-			if ((default_card>=0) && (default_card==card))
+			// save card name
+            strcpy(card_name, snd_ctl_card_info_get_id(info));
+            LOGD("saved card name: %s\n", card_name);
+            if ((default_card>=0) && (default_card==card))
 				return card;
 			else if(strncmp(snd_ctl_card_info_get_id(info),"AML",3)!=0)//find AML sound card
 				return card;
@@ -330,9 +341,10 @@ status_t setHardwareParams(alsa_handle_t *handle)
     LOGW("Using %i %s for %s.", handle->channels,
             handle->channels == 1 ? "channel" : "channels", streamName(handle));
 
+    LOGW("requestedRate=%d\n", requestedRate);
     err = snd_pcm_hw_params_set_rate_near(handle->handle, hardwareParams,
             &requestedRate, 0);
-
+    LOGW("returned Rate=%d, handle->rate=%d\n", requestedRate, handle->sampleRate);
     if (err < 0)
         LOGE("Unable to set %s sample rate to %u: %s",
                 streamName(handle), handle->sampleRate, snd_strerror(err));
@@ -521,12 +533,18 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     _defaultsOut.bufferSize = bufferSize;
 
     list.push_back(_defaultsOut);
+    
+    bufferSize = _defaultsUSBIn.bufferSize;
 
-    char prop[10] = {0};
-	property_get("alsa.use.usb.audioin", prop, "false");
+	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
+	        bufferSize &= ~i;
 
-    //Use AMLM1 audio in default parameter
-	if(strcmp(prop,"false") == 0){
+	    _defaultsUSBIn.module = module;
+	    _defaultsUSBIn.bufferSize = bufferSize;
+        _defaultsUSBIn.modPrivate = (void*)usbAudio;
+	    list.push_back(_defaultsUSBIn);
+        LOGW("use USB audio in as default");
+
 
 	    bufferSize = _defaultsIn.bufferSize;
 
@@ -535,23 +553,11 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
 	    _defaultsIn.module = module;
 	    _defaultsIn.bufferSize = bufferSize;
-
+        _defaultsIn.modPrivate = (void*)builtinAudio;
 	    list.push_back(_defaultsIn);
-	}
-	else{////Use USB audio in default parameter
+        LOGW("use AML audio in as default");
 
-	    bufferSize = _defaultsUSBIn.bufferSize;
-
-	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
-	        bufferSize &= ~i;
-
-	    _defaultsUSBIn.module = module;
-	    _defaultsUSBIn.bufferSize = bufferSize;
-
-	    list.push_back(_defaultsUSBIn);
-	}
-
-    return NO_ERROR;
+	        return NO_ERROR;
 }
 
 static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
@@ -572,13 +578,24 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
     int err,card;
-    char prop[20],dev_Name[20];
+    char prop[20],dev_Name[20],card_name[32]; 
     property_get("alsa.use.usb.audioin",prop,"flase");
+ LOGD("input handle: %s\n", (char*)handle->modPrivate);
     if(strcmp(prop,"true") == 0 && direction(handle) == SND_PCM_STREAM_CAPTURE){
-        card = getDeviceNum(direction(handle));
+        card = getDeviceNum(direction(handle), card_name);
         if(card >= 0){
-            sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
+           // sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
+            sprintf(dev_Name, "hw:%d", card);
             devName = dev_Name;
+        }
+        // if we want usb-audio, but returned builtin-audio, return error.
+        // audiopolicymanager should try next card
+        LOGD("card name: %s\n", card_name);
+        if(strncmp(card_name,"AML", 3) == 0 && strcmp((char*)handle->modPrivate, "usb-audio") == 0){
+          
+          pthread_mutex_unlock(&handle->mLock);
+          LOGD("You are request usb-audio with usb's params, but returned builtin-audio card\n");
+          return NO_INIT;
         }
     }
     for (;;) {

@@ -158,8 +158,13 @@ status_t AudioHardwareALSA::setMode(int mode)
                 it != mDeviceList.end(); ++it)
                 if (it->curDev) {
                     status = mALSADevice->route(&(*it), it->curDev, mode);
-                    if (status != NO_ERROR)
+                    if (status != NO_ERROR){
+                        // if usb-audio not exist or open error, try builtin-audio
+                        if(strcmp((char*)it->modPrivate, "usb-audio") == 0)
+                          continue;
+                        // other case
                         break;
+                    }
                 }
         }
     }
@@ -223,11 +228,20 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     }
 
     // Find the appropriate alsa device
+    // Open usb-audio first, if not avaible, try builtin-audio
     for(ALSAHandleList::iterator it = mDeviceList.begin();
         it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
             err = mALSADevice->open(&(*it), devices, mode());
-            if (err) break;
+            if (err) {
+              // check if usb-audio
+              if(strcmp((char*)it->modPrivate, "usb-audio") == 0){
+                LOGE("open usb-audio error, to try builtin-audio\n");
+                continue;
+              }
+
+              break;
+            }
             in = new AudioStreamInALSA(this, &(*it), acoustics);
             err = in->set(format, channels, sampleRate);
             break;
@@ -298,6 +312,11 @@ size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, in
 		List<alsa_handle_t>::iterator iter = mDeviceList.begin();
 		do
 		{
+          // we'd better to try to find the current active input device
+            if(iter->handle == 0){
+
+            }
+            LOGD("audio-in handle=%p", iter->handle);
 			if(iter->devices == AudioSystem::DEVICE_IN_ALL)
 			{
 				devicebuffersize = iter->bufferSize;
