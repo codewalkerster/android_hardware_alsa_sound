@@ -195,8 +195,8 @@ ALSAMixer::ALSAMixer()
 
                 info->elem = elem;
                 getVolumeRange[i] (elem, &info->min, &info->max);
-                info->volume = info->max;
-                setVol[i] (elem, info->volume);
+                //info->volume = info->max;
+                //setVol[i] (elem, info->volume);
                 if (i == SND_PCM_STREAM_PLAYBACK &&
                     snd_mixer_selem_has_playback_switch (elem))
                     snd_mixer_selem_set_playback_switch_all (elem, 1);
@@ -232,8 +232,8 @@ ALSAMixer::ALSAMixer()
 
                     info->elem = elem;
                     getVolumeRange[i] (elem, &info->min, &info->max);
-                    info->volume = info->max;
-                    setVol[i] (elem, info->volume);
+                    //info->volume = info->max;
+                    //setVol[i] (elem, info->volume);
                     if (i == SND_PCM_STREAM_PLAYBACK &&
                         snd_mixer_selem_has_playback_switch (elem))
                         snd_mixer_selem_set_playback_switch_all (elem, 1);
