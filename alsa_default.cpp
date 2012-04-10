@@ -221,7 +221,7 @@ static int getDeviceNum(snd_pcm_stream_t stream, char* card_name)
 	if (stream == SND_PCM_STREAM_CAPTURE)
 		property_get("snd.card.default.card.capture", prop, "null");
 	else  if (stream == SND_PCM_STREAM_PLAYBACK)
-		property_get("snd.card.default.card.capture", prop, "null");
+		property_get("snd.card.default.card.playback", prop, "null");
 	
 	if (strcmp(prop, "null") != 0)
 		default_card = strtol(prop, NULL, 0);	
