@@ -217,8 +217,12 @@ static int getDeviceNum(snd_pcm_stream_t stream, char* card_name)
 	snd_pcm_info_t *pcminfo;
 	int default_card = -1;
 	char prop[20];
+
+	if (stream == SND_PCM_STREAM_CAPTURE)
+		property_get("snd.card.default.card.capture", prop, "null");
+	else  if (stream == SND_PCM_STREAM_PLAYBACK)
+		property_get("snd.card.default.card.capture", prop, "null");
 	
-	property_get("snd.card.default.card", prop, "null");
 	if (strcmp(prop, "null") != 0)
 		default_card = strtol(prop, NULL, 0);	
 	LOGE("prop =  %s, default_card = %d", prop, default_card);
@@ -245,8 +249,10 @@ static int getDeviceNum(snd_pcm_stream_t stream, char* card_name)
 		while (1) {
 			if (snd_ctl_pcm_next_device(handle, &dev)<0)
 				LOGE("snd_ctl_pcm_next_device");
-			if (dev < 0)
+			if (dev < 0){
+				LOGE("(dev < 0)");
 				break;
+			}
 			snd_pcm_info_set_device(pcminfo, dev);
 			snd_pcm_info_set_subdevice(pcminfo, 0);
 			snd_pcm_info_set_stream(pcminfo, stream);
@@ -255,28 +261,30 @@ static int getDeviceNum(snd_pcm_stream_t stream, char* card_name)
 					LOGE("control digital audio info (%i): %s", card, snd_strerror(err));
 				continue;
 			}
-            /*
-             * if default_card >= 0 , or same as the current found card, return it.
-             * if default_card <  0 , enable USB audio first, if found
-             * else, enable builtin-audio
-             */
+			/*
+			* if default_card >= 0 , or same as the current found card, return it.
+			* if default_card <  0 , enable USB audio first, if found
+			* else, enable builtin-audio
+			*/
 			LOGE("heming add snd_ctl_card_info_get_id=%s, default_card=%d, card=%d",snd_ctl_card_info_get_id(info), default_card, card);
 			// save card name
-            strcpy(card_name, snd_ctl_card_info_get_id(info));
-            LOGD("saved card name: %s\n", card_name);
-            if ((default_card>=0) && (default_card==card))
+			strcpy(card_name, snd_ctl_card_info_get_id(info));
+			LOGD("saved card name: %s\n", card_name);
+			if ((default_card>=0) && (default_card==card))
 				return card;
-			else if(strncmp(snd_ctl_card_info_get_id(info),"AML",3)!=0)//find AML sound card
+			else if ((strncmp(snd_ctl_card_info_get_id(info),"AML",3)==0) && (stream == SND_PCM_STREAM_PLAYBACK)&&(default_card==-1)) //set aml as default playback
+				return card;
+			else if ((strncmp(snd_ctl_card_info_get_id(info),"AML",3)!=0) && (stream == SND_PCM_STREAM_CAPTURE)&&(default_card==-1)) //set usb as default capture
 				return card;
 			else
 				amlcard = card;
 		}
 		snd_ctl_close(handle);
 		next_card:
-	    if (snd_card_next(&card) < 0) {
-		    LOGE("snd_card_next");
-		    break;
-	    }
+		if (snd_card_next(&card) < 0) {
+			LOGE("snd_card_next");
+			break;
+		}
 	}
 	return amlcard;
 }
@@ -562,9 +570,9 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
 static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 {
-    // Close off previously opened device.
-    // It would be nice to determine if the underlying device actually
-    // changes, but we might be recovering from an error or manipulating
+	// Close off previously opened device.
+	// It would be nice to determine if the underlying device actually
+	// changes, but we might be recovering from an error or manipulating
     // mixer settings (see asound.conf).
     //
     LOGD("open called for devices %08x in mode %d...", devices, mode);
@@ -579,9 +587,12 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     const char *devName = deviceName(handle, devices, mode);
     int err,card;
     char prop[20],dev_Name[20],card_name[32]; 
- LOGD("input handle: %s\n", (char*)handle->modPrivate);
-    if(direction(handle) == SND_PCM_STREAM_CAPTURE){
+ LOGD("input handle: %s, devName = %s \n", (char*)handle->modPrivate, devName);
+#if 1 
+    if ((direction(handle) == SND_PCM_STREAM_CAPTURE)/*||(direction(handle) == SND_PCM_STREAM_PLAYBACK)*/){
         card = getDeviceNum(direction(handle), card_name);
+	LOGD("card : %d\n", card);
+
         if(card >= 0){
            // sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
             sprintf(dev_Name, "hw:%d", card);
@@ -590,17 +601,35 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
         // if we want usb-audio, but returned builtin-audio, return error.
         // audiopolicymanager should try next card
         LOGD("card name: %s\n", card_name);
+        LOGD("devName: %s\n", devName);
         if(strncmp(card_name,"AML", 3) == 0 && strcmp((char*)handle->modPrivate, "usb-audio") == 0){
           
           pthread_mutex_unlock(&handle->mLock);
           LOGD("You are request usb-audio with usb's params, but returned builtin-audio card\n");
           return NO_INIT;
         }
+   }
+    if(direction(handle) == SND_PCM_STREAM_PLAYBACK){
+		card = snd_card_get_aml_card();
+		LOGD("SND_PCM_STREAM_PLAYBACK  card : %d\n", card);
+
+		sprintf(dev_Name, "hw:%d", card);
+		devName = dev_Name;
     }
+#else
+
+	if(direction(handle) == SND_PCM_STREAM_CAPTURE){
+		sprintf(dev_Name, "hw:0");
+		devName = dev_Name;
+    	}
+
+#endif	
     for (;;) {
         // The PCM stream is opened in blocking mode, per ALSA defaults.  The
         // AudioFlinger seems to assume blocking mode too, so asynchronous mode
         // should not be used.
+         LOGD("---- devName = %s \n", devName);
+
         err = snd_pcm_open(&handle->handle, devName, direction(handle),
                 SND_PCM_ASYNC);
         if (err == 0) break;
@@ -615,6 +644,8 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     if (err < 0) {
         // None of the Android defined audio devices exist. Open a generic one.
         devName = "default";
+         LOGD("-r-- devName = %s \n", devName);
+
         err = snd_pcm_open(&handle->handle, devName, direction(handle), 0);
     }
 
