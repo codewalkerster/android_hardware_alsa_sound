@@ -139,9 +139,9 @@ static alsa_handle_t _defaultsUSBIn = {
     handle      : 0,
     format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
     channels    : 1,
-    sampleRate  : 16000,//DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
+    sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
-    bufferSize  : 1600,//DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
+    bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
     mLock       : PTHREAD_MUTEX_INITIALIZER,
     modPrivate  : 0,
 };
