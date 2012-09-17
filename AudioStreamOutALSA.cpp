@@ -176,7 +176,7 @@ status_t AudioStreamOutALSA::standby()
 uint32_t AudioStreamOutALSA::latency() const
 {
     int err;
-    int t;
+    int t,t1;
     snd_pcm_status_t *status;
 
 	snd_pcm_status_alloca(&status);
@@ -192,7 +192,10 @@ uint32_t AudioStreamOutALSA::latency() const
 	}
 
     t = snd_pcm_status_get_delay(status);
+    t1 = snd_pcm_status_get_ex_size(status);
     ALOGV("snd_pcm_status_get_delay = %d", t);
+    ALOGV("snd_pcm_status_get_ex_size = %d", t1);
+    t = t+t1;
     ALOGV("AudioStreamOutALSA::latency = %d, sampleRate = %d", 
         (t * 1000) / sampleRate(),
         sampleRate());
