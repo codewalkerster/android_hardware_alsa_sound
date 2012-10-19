@@ -43,6 +43,8 @@ static status_t s_init(alsa_device_t *, ALSAHandleList &);
 static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
+static status_t s_standby(alsa_handle_t *);  //wcs
+
 
 static hw_module_methods_t s_module_methods = {
     open            : s_device_open
@@ -78,6 +80,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->open = s_open;
     dev->close = s_close;
     dev->route = s_route;
+	dev->standby = s_standby;  // wcs
 
     *device = &dev->common;
     return 0;
@@ -138,7 +141,7 @@ static alsa_handle_t _defaultsUSBIn = {
     curMode     : 0,
     handle      : 0,
     format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
-    channels    : 1,
+    channels    : 2,
     sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
     bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
@@ -159,6 +162,7 @@ static const device_suffix_t deviceSuffix[] = {
         {AudioSystem::DEVICE_OUT_BLUETOOTH_SCO,  "_Bluetooth"},
         {AudioSystem::DEVICE_OUT_WIRED_HEADSET,  "_Headset"},
         {AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP, "_Bluetooth-A2DP"},
+        {AudioSystem::DEVICE_OUT_WIRED_HEADPHONE,"_Headphone"}
 };
 
 static const int deviceSuffixLen = (sizeof(deviceSuffix)
@@ -531,7 +535,7 @@ status_t setSoftwareParams(alsa_handle_t *handle)
 static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 {
     list.clear();
-
+	//ALOGD("************s_init******************\n");
     snd_pcm_uframes_t bufferSize = _defaultsOut.bufferSize;
 
     for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
@@ -541,8 +545,13 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     _defaultsOut.bufferSize = bufferSize;
 
     list.push_back(_defaultsOut);
-    
-    bufferSize = _defaultsUSBIn.bufferSize;
+	
+	char prop[20];
+    property_get("ro.platform.has.mbxuimode",prop,"false");
+	//ALOGD("*************prop[20]=%s*********\n",prop);
+	if(strcmp(prop,"false")!=0){
+		ALOGD("*************media***box***********\n");
+        bufferSize = _defaultsUSBIn.bufferSize;
 
 	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
 	        bufferSize &= ~i;
@@ -553,7 +562,8 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 	    list.push_back(_defaultsUSBIn);
         ALOGW("use USB audio in as default");
 
-
+	}else{
+		ALOGD("**********audio in as default********\n");
 	    bufferSize = _defaultsIn.bufferSize;
 
 	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
@@ -564,8 +574,8 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
         _defaultsIn.modPrivate = (void*)builtinAudio;
 	    list.push_back(_defaultsIn);
         ALOGW("use AML audio in as default");
-
-	        return NO_ERROR;
+	}
+	return NO_ERROR;
 }
 
 static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
@@ -587,43 +597,45 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     const char *devName = deviceName(handle, devices, mode);
     int err,card;
     char prop[20],dev_Name[20],card_name[32]; 
- ALOGD("input handle: %s, devName = %s \n", (char*)handle->modPrivate, devName);
-#if 1 
-    if ((direction(handle) == SND_PCM_STREAM_CAPTURE)/*||(direction(handle) == SND_PCM_STREAM_PLAYBACK)*/){
-        card = getDeviceNum(direction(handle), card_name);
-	ALOGD("card : %d\n", card);
+ 	ALOGD("input handle: %s, devName = %s \n", (char*)handle->modPrivate, devName);
 
-        if(card >= 0){
-           // sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
-            sprintf(dev_Name, "hw:%d", card);
-            devName = dev_Name;
-        }
-        // if we want usb-audio, but returned builtin-audio, return error.
-        // audiopolicymanager should try next card
-        ALOGD("card name: %s\n", card_name);
-        ALOGD("devName: %s\n", devName);
-        if(strncmp(card_name,"AML", 3) == 0 && strcmp((char*)handle->modPrivate, "usb-audio") == 0){
-          
-          pthread_mutex_unlock(&handle->mLock);
-          ALOGD("You are request usb-audio with usb's params, but returned builtin-audio card\n");
-          return NO_INIT;
-        }
-   }
-    if(direction(handle) == SND_PCM_STREAM_PLAYBACK){
-		card = snd_card_get_aml_card();
-		ALOGD("SND_PCM_STREAM_PLAYBACK  card : %d\n", card);
+	property_get("ro.platform.has.mbxuimode",prop,"false");
+	if(strcmp(prop,"false")!=0){
 
-		sprintf(dev_Name, "hw:%d", card);
-		devName = dev_Name;
-    }
-#else
+	    if ((direction(handle) == SND_PCM_STREAM_CAPTURE)/*||(direction(handle) == SND_PCM_STREAM_PLAYBACK)*/){
+	        card = getDeviceNum(direction(handle), card_name);
+		ALOGD("card : %d\n", card);
 
+	        if(card >= 0){
+	           // sprintf(dev_Name,"plug:SLAVE='hw:%d,0'",card);
+	            sprintf(dev_Name, "hw:%d", card);
+	            devName = dev_Name;
+	        }
+	        // if we want usb-audio, but returned builtin-audio, return error.
+	        // audiopolicymanager should try next card
+	        ALOGD("card name: %s\n", card_name);
+	        ALOGD("devName: %s\n", devName);
+	        if(strncmp(card_name,"AML", 3) == 0 && strcmp((char*)handle->modPrivate, "usb-audio") == 0){
+	          
+	          pthread_mutex_unlock(&handle->mLock);
+	          ALOGD("You are request usb-audio with usb's params, but returned builtin-audio card\n");
+	          return NO_INIT;
+	        }
+	   }
+	    if(direction(handle) == SND_PCM_STREAM_PLAYBACK){
+			card = snd_card_get_aml_card();
+			ALOGD("SND_PCM_STREAM_PLAYBACK  card : %d\n", card);
+
+			sprintf(dev_Name, "hw:%d", card);
+			devName = dev_Name;
+	    }
+	}
+#if 0
 	if(direction(handle) == SND_PCM_STREAM_CAPTURE){
 		sprintf(dev_Name, "hw:0");
 		devName = dev_Name;
     	}
-
-#endif	
+#endif
     for (;;) {
         // The PCM stream is opened in blocking mode, per ALSA defaults.  The
         // AudioFlinger seems to assume blocking mode too, so asynchronous mode
@@ -695,5 +707,28 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
 
     return s_open(handle, devices, mode);
 }
+
+
+static status_t s_standby(alsa_handle_t *handle)
+{
+	//ALOGD("**********s_standby***********\n");
+
+	pthread_mutex_lock(&handle->mLock);
+
+    status_t err = NO_ERROR;
+   	snd_pcm_t *h = handle->handle;
+    handle->handle = 0;
+   // handle->curDev = 0;
+  	//handle->curMode = 0;
+    if (h) {
+		snd_pcm_drain(h);
+       err = snd_pcm_close(h);
+    }
+	//standby_flag = 1;
+    pthread_mutex_unlock(&handle->mLock);
+    return err;
+ // return s_close(handle);
+}
+
 
 }
