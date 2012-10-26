@@ -141,7 +141,7 @@ static alsa_handle_t _defaultsUSBIn = {
     curMode     : 0,
     handle      : 0,
     format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
-    channels    : 2,
+    channels    : 1,
     sampleRate  : DEFAULT_SAMPLE_RATE,	//AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 100000, // Desired Delay in usec
     bufferSize  : DEFAULT_SAMPLE_RATE/10, // Desired Number of samples
