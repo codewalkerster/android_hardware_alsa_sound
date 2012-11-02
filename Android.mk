@@ -3,7 +3,7 @@
 # Copyright 2008 Wind River Systems
 #
 
-ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
+ifneq ($(strip $(PRODUCT_MANUFACTURER)),MID)
 
   LOCAL_PATH := $(call my-dir)
 
