@@ -546,11 +546,11 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
     list.push_back(_defaultsOut);
 	
-	char prop[20];
-    property_get("ro.platform.has.mbxuimode",prop,"false");
+	//char prop[20];
+    //property_get("ro.platform.has.mbxuimode",prop,"false");
 	//ALOGD("*************prop[20]=%s*********\n",prop);
-	if(strcmp(prop,"false")!=0){
-		ALOGD("*************media***box***********\n");
+	//if(strcmp(prop,"false")!=0){
+	//	ALOGD("*************media***box***********\n");
         bufferSize = _defaultsUSBIn.bufferSize;
 
 	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
@@ -562,8 +562,8 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 	    list.push_back(_defaultsUSBIn);
         ALOGW("use USB audio in as default");
 
-	}else{
-		ALOGD("**********audio in as default********\n");
+	//}else{
+	//	ALOGD("**********audio in as default********\n");
 	    bufferSize = _defaultsIn.bufferSize;
 
 	    for (size_t i = 1; (bufferSize & ~i) != 0; i <<= 1)
@@ -574,7 +574,7 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
         _defaultsIn.modPrivate = (void*)builtinAudio;
 	    list.push_back(_defaultsIn);
         ALOGW("use AML audio in as default");
-	}
+	//}
 	return NO_ERROR;
 }
 
@@ -603,6 +603,14 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 	if(strcmp(prop,"false")!=0){
 
 	    if ((direction(handle) == SND_PCM_STREAM_CAPTURE)/*||(direction(handle) == SND_PCM_STREAM_PLAYBACK)*/){
+        property_get("audioin.capture",prop,"usb");  // judge HDMI IN module 
+		if(strcmp(prop,"aml")==0){
+			ALOGD("default card : %d\n", prop);
+			card = snd_card_get_aml_card();
+			sprintf(dev_Name, "hw:%d", card);
+			devName = dev_Name;		
+		}
+		else {
 	        card = getDeviceNum(direction(handle), card_name);
 		ALOGD("card : %d\n", card);
 
@@ -622,12 +630,22 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 	          return NO_INIT;
 	        }
 	   }
+	 }
 	    if(direction(handle) == SND_PCM_STREAM_PLAYBACK){
 			card = snd_card_get_aml_card();
 			ALOGD("SND_PCM_STREAM_PLAYBACK  card : %d\n", card);
 
 			sprintf(dev_Name, "hw:%d", card);
 			devName = dev_Name;
+	    }
+	}else{
+		if ((direction(handle) == SND_PCM_STREAM_CAPTURE)){
+		
+			if(strcmp((char*)handle->modPrivate, "usb-audio") == 0){  
+		          pthread_mutex_unlock(&handle->mLock);
+		          ALOGD("have no usb-audio,returned find builtin-audio card\n");
+		          return NO_INIT;
+		    }
 	    }
 	}
 #if 0
