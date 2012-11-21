@@ -1,9 +1,10 @@
-# hardware/libaudio-alsa/Android.mk
+# hardware/alsa_sound/Android.mk
 #
 # Copyright 2008 Wind River Systems
 #
 
-ifneq ($(strip $(PRODUCT_MANUFACTURER)),MID)
+# BOARD_ALSA_AUDIO is legacy or true
+ifneq (,$(strip $(filter $(BOARD_ALSA_AUDIO),legacy true)))
 
   LOCAL_PATH := $(call my-dir)
 
